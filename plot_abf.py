@@ -4,6 +4,7 @@ import pyabf.plot
 import matplotlib.pyplot as plt
 import argparse
 import glob
+import pandas as pd
 
 def make_plot(abf_name, no_annot):
     try:
@@ -12,15 +13,8 @@ def make_plot(abf_name, no_annot):
         print('Must include name of file to analyze')
         sys.exit(1)
 
-    abf.setSweep(0)
-
-
     fig, ax = plt.subplots()
-
-
     ax.plot(abf.sweepX, abf.sweepY, color = 'black')
-
-    ax.set(xlabel = 'Time (sec)', ylabel = 'Clamp Current (pA)')
 
     if not no_annot:
         # add horizontal tag lines
@@ -51,9 +45,9 @@ def make_plot(abf_name, no_annot):
 
     # this also hides the frame and axes
     pyabf.plot.scalebar(abf = abf)
-    return plt
+    return (plt, abf)
 
-def graphs_from_files(filenames, no_annot):
+def graphs_from_files(filenames, no_annot, save_csv):
     globs = []
     for file in filenames:
         globs.extend(glob.glob(file))
@@ -61,16 +55,29 @@ def graphs_from_files(filenames, no_annot):
     globs = set(globs)
 
     for file in globs:
-        make_plot(file, no_annot)
+        plt, abf = make_plot(file, no_annot)
         plt.savefig(
             f'{file[:-4]}.png',
             dpi = 300,
             transparent = True
         )
 
+        if save_csv:
+            df = pd.DataFrame({
+                'Time': abf.sweepX,
+                'Signal': abf.sweepY
+            })
+
+            df['Barrel'] = 1
+            for i, tagTimeSec in enumerate(abf.tagTimesSec):
+                df.loc[df['Time'] > tagTimeSec, 'Barrel'] = abf.tagComments[i][-3]
+
+            print(df)
+            df.to_csv(f'{file[:-4]}.csv', index = False)
+
 def main():
     args = parser.parse_args()
-    graphs_from_files(args.files, args.no_annotations)
+    graphs_from_files(args.files, args.no_annotations, args.save_csv)
 
 parser = argparse.ArgumentParser(description='Plot ABF binary files')
 parser.add_argument(
@@ -82,6 +89,11 @@ parser.add_argument(
 parser.add_argument(
     '-a', '--no-annotations',
     help = 'Do not annotate with voltage levels',
+    action = 'store_true'
+)
+parser.add_argument(
+    '-c', '--save-csv',
+    help = 'Save X and Y to csv format.',
     action = 'store_true'
 )
 
