@@ -93,7 +93,7 @@ parser.add_argument(
 )
 parser.add_argument(
     '-c', '--save-csv',
-    help = 'Save X and Y to csv format.',
+    help = 'Save X, Y, and barrel to csv format.',
     action = 'store_true'
 )
 
