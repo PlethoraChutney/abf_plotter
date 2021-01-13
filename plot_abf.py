@@ -6,18 +6,9 @@ import argparse
 import glob
 import pandas as pd
 
-def make_plot(abf_name, no_annot):
-    try:
-        abf = pyabf.ABF(abf_name)
-    except IndexError:
-        print('Must include name of file to analyze')
-        sys.exit(1)
+def make_plot(abf, annot_type):
 
-    fig, ax = plt.subplots()
-    ax.plot(abf.sweepX, abf.sweepY, color = 'black')
-
-    if not no_annot:
-        # add horizontal tag lines
+    def horizontal():
         yvals = []
         xmins = []
         xmaxes = []
@@ -35,7 +26,6 @@ def make_plot(abf_name, no_annot):
             xmins.append(start_x)
             xmaxes.append(end_x)
             colors.append(color)
-            legends.append(comment[-3])
 
         ax.hlines(yvals, xmins, xmaxes, colors = colors, linewidths = 3)
 
@@ -43,11 +33,31 @@ def make_plot(abf_name, no_annot):
             mid = (xmin + xmax) / 2
             ax.text(mid, y + 7, color[-1], horizontalalignment = 'center')
 
+
+    def vertical():
+        for i, tagTimeSec in enumerate(abf.tagTimesSec):
+            posX = abf.tagTimesSec[i]
+            comment = abf.tagComments[i]
+            color = 'C%d' % (i + 1)
+            ax.axvline(posX, label = comment, color = color, ls = '--')
+
+    annot_func_dict = {
+        'horizontal': horizontal,
+        'vertical': vertical
+    }
+
+    fig, ax = plt.subplots()
+    ax.plot(abf.sweepX, abf.sweepY, color = 'black')
+
+    if annot_type != 'none':
+        annot_func_dict[annot_type]()
+
     # this also hides the frame and axes
     pyabf.plot.scalebar(abf = abf)
-    return (plt, abf)
+    return plt
 
-def graphs_from_files(filenames, no_annot, filetype, save_csv):
+def graphs_from_files(filenames, annotations, filetype, save_csv):
+
     globs = []
     for file in filenames:
         globs.extend(glob.glob(file))
@@ -55,7 +65,9 @@ def graphs_from_files(filenames, no_annot, filetype, save_csv):
     globs = set(globs)
 
     for file in globs:
-        plt, abf = make_plot(file, no_annot)
+        abf = pyabf.ABF(file)
+
+        plt = make_plot(abf, annotations)
         plt.savefig(
             f'{file[:-4]}.{filetype}',
             dpi = 300,
@@ -77,19 +89,21 @@ def graphs_from_files(filenames, no_annot, filetype, save_csv):
 
 def main():
     args = parser.parse_args()
-    graphs_from_files(args.files, args.no_annotations, args.filetype, args.save_csv)
+    graphs_from_files(args.files, args.annotations, args.filetype, args.save_csv)
 
 parser = argparse.ArgumentParser(description='Plot ABF binary files')
 parser.add_argument(
     'files',
-    help = 'ABF files to analyze',
+    help = 'ABF files to analyze.',
     type = str,
     nargs = '+'
 )
 parser.add_argument(
-    '-a', '--no-annotations',
-    help = 'Do not annotate with voltage levels',
-    action = 'store_true'
+    '-a', '--annotations',
+    help = 'How to annotate channel changes. Default horizontal.',
+    type = str.lower,
+    choices = ['horizontal', 'vertical', 'none'],
+    default = 'horizontal'
 )
 parser.add_argument(
     '-f', '--filetype',
