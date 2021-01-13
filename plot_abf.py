@@ -47,7 +47,7 @@ def make_plot(abf_name, no_annot):
     pyabf.plot.scalebar(abf = abf)
     return (plt, abf)
 
-def graphs_from_files(filenames, no_annot, save_csv):
+def graphs_from_files(filenames, no_annot, filetype, save_csv):
     globs = []
     for file in filenames:
         globs.extend(glob.glob(file))
@@ -57,7 +57,7 @@ def graphs_from_files(filenames, no_annot, save_csv):
     for file in globs:
         plt, abf = make_plot(file, no_annot)
         plt.savefig(
-            f'{file[:-4]}.png',
+            f'{file[:-4]}.{filetype}',
             dpi = 300,
             transparent = True
         )
@@ -77,7 +77,7 @@ def graphs_from_files(filenames, no_annot, save_csv):
 
 def main():
     args = parser.parse_args()
-    graphs_from_files(args.files, args.no_annotations, args.save_csv)
+    graphs_from_files(args.files, args.no_annotations, args.filetype, args.save_csv)
 
 parser = argparse.ArgumentParser(description='Plot ABF binary files')
 parser.add_argument(
@@ -90,6 +90,13 @@ parser.add_argument(
     '-a', '--no-annotations',
     help = 'Do not annotate with voltage levels',
     action = 'store_true'
+)
+parser.add_argument(
+    '-f', '--filetype',
+    help = 'Type of plot to save. Default pdf.',
+    type = str.lower,
+    choices = ['pdf', 'png', 'svg'],
+    default = 'pdf'
 )
 parser.add_argument(
     '-c', '--save-csv',
